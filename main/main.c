@@ -46,6 +46,11 @@ static void moros_splash(void)
     moros_draw_text(VERSION_X, VERSION_Y, "v0.1.0", COLOR_PURPLE, 2);
 }
 
+/* KEY is the encoder push on GPIO 0, an ESP32-S3 strapping pin. Holding it LOW
+ * at power-on/reset makes the boot ROM enter serial download mode instead of
+ * running the firmware, so the board appears "dead". This is decided in ROM
+ * before app_main runs and cannot be worked around in software. This task is
+ * also created only after the splash, so the button isn't watched during boot. */
 static void power_watch_task(void *arg)
 {
     int held_ms = 0;
@@ -71,6 +76,7 @@ void app_main(void)
     ESP_LOGI(TAG, "MOROS starting...");
 
     ESP_ERROR_CHECK(moros_gpio_init());
+    ESP_ERROR_CHECK(moros_i2c_init());
     ESP_ERROR_CHECK(moros_spi_init());
     ESP_ERROR_CHECK(moros_display_init());
 

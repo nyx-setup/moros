@@ -37,5 +37,6 @@ esp_err_t moros_gpio_init(void)
 void moros_power_off(void)
 {
     gpio_set_level(MOROS_PIN_LCD_BL, 0);
+    moros_pmic_shutdown();
     gpio_set_level(MOROS_PIN_PWR_EN, 0);
 }
