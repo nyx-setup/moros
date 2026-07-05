@@ -1,6 +1,8 @@
 #include "moros_hal.h"
 #include "moros_display.h"
 #include "moros_font.h"
+#include "moros_input.h"
+#include "menu.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -43,31 +45,44 @@ static void moros_splash(void)
         vTaskDelay(pdMS_TO_TICKS(400));
     }
 
-    moros_draw_text(VERSION_X, VERSION_Y, "v0.1.0", COLOR_PURPLE, 2);
+    moros_draw_text(VERSION_X, VERSION_Y, "v0.2.0", COLOR_PURPLE, 2);
 }
 
-/* KEY is the encoder push on GPIO 0, an ESP32-S3 strapping pin. Holding it LOW
- * at power-on/reset makes the boot ROM enter serial download mode instead of
- * running the firmware, so the board appears "dead". This is decided in ROM
- * before app_main runs and cannot be worked around in software. This task is
- * also created only after the splash, so the button isn't watched during boot. */
-static void power_watch_task(void *arg)
-{
-    int held_ms = 0;
+static const char *const menu_items[] = {
+    "Sub-GHz", "RFID", "NFC", "Infrared", "Settings",
+};
 
+static moros_menu_t main_menu = {
+    .items = menu_items,
+    .count = sizeof(menu_items) / sizeof(menu_items[0]),
+    .selected = 0,
+};
+
+static void navigation_task(void *arg)
+{
+    moros_display_fill(MOROS_COLOR_BLACK);
+    moros_menu_draw(&main_menu);
+
+    moros_input_event_t ev;
     for (;;) {
-        if (gpio_get_level(MOROS_PIN_KEY) == 0) {
-            held_ms += 50;
-            if (held_ms >= 2000) {
-                ESP_LOGI(TAG, "Power off");
-                moros_display_fill(MOROS_COLOR_BLACK);
-                vTaskDelay(pdMS_TO_TICKS(200));
-                moros_power_off();
-            }
-        } else {
-            held_ms = 0;
+        if (!moros_input_get(&ev, portMAX_DELAY)) continue;
+
+        switch (ev) {
+        case MOROS_INPUT_CW:
+            moros_menu_move(&main_menu, 1);
+            break;
+        case MOROS_INPUT_CCW:
+            moros_menu_move(&main_menu, -1);
+            break;
+        case MOROS_INPUT_CLICK:
+            ESP_LOGI(TAG, "enter: %s", menu_items[main_menu.selected]);
+            break;
+        case MOROS_INPUT_LONG_PRESS:
+            moros_display_fill(MOROS_COLOR_BLACK);
+            vTaskDelay(pdMS_TO_TICKS(200));
+            moros_power_off();
+            break;
         }
-        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
@@ -79,11 +94,12 @@ void app_main(void)
     ESP_ERROR_CHECK(moros_i2c_init());
     ESP_ERROR_CHECK(moros_spi_init());
     ESP_ERROR_CHECK(moros_display_init());
+    ESP_ERROR_CHECK(moros_input_init());
 
     moros_display_fill(MOROS_COLOR_BLACK);
     moros_splash();
 
-    xTaskCreate(power_watch_task, "pwr", 2048, NULL, 5, NULL);
+    xTaskCreate(navigation_task, "nav", 3072, NULL, 5, NULL);
 
     ESP_LOGI(TAG, "Ready");
 }

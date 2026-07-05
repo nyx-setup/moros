@@ -6,6 +6,7 @@
 
 esp_err_t moros_display_init(void);
 void moros_display_fill(uint16_t color);
+void moros_display_fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 void moros_display_set_pixel(uint16_t x, uint16_t y, uint16_t color);
 
 /* RGB565 color helpers */

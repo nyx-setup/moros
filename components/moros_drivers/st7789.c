@@ -81,31 +81,40 @@ esp_err_t moros_display_init(void)
     return ESP_OK;
 }
 
-void moros_display_fill(uint16_t color)
+void moros_display_fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
 {
-    lcd_set_window(0, 0, MOROS_LCD_WIDTH - 1, MOROS_LCD_HEIGHT - 1);
+    if (x >= MOROS_LCD_WIDTH || y >= MOROS_LCD_HEIGHT) return;
+    if (x + w > MOROS_LCD_WIDTH)  w = MOROS_LCD_WIDTH - x;
+    if (y + h > MOROS_LCD_HEIGHT) h = MOROS_LCD_HEIGHT - y;
+
+    lcd_set_window(x, y, x + w - 1, y + h - 1);
 
     uint8_t hi = color >> 8;
     uint8_t lo = color & 0xFF;
-    size_t buf_size = MOROS_LCD_WIDTH * 2;
-    uint8_t *line = heap_caps_malloc(buf_size, MALLOC_CAP_DMA);
-    if (!line) return;
+    size_t row_size = w * 2;
+    uint8_t *row = heap_caps_malloc(row_size, MALLOC_CAP_DMA);
+    if (!row) return;
 
-    for (int i = 0; i < MOROS_LCD_WIDTH; i++) {
-        line[i * 2]     = hi;
-        line[i * 2 + 1] = lo;
+    for (int i = 0; i < w; i++) {
+        row[i * 2]     = hi;
+        row[i * 2 + 1] = lo;
     }
 
     gpio_set_level(MOROS_PIN_LCD_DC, 1);
-    for (int y = 0; y < MOROS_LCD_HEIGHT; y++) {
+    for (int j = 0; j < h; j++) {
         spi_transaction_t t = {
-            .length = buf_size * 8,
-            .tx_buffer = line,
+            .length = row_size * 8,
+            .tx_buffer = row,
         };
         spi_device_transmit(lcd_spi, &t);
     }
 
-    free(line);
+    free(row);
+}
+
+void moros_display_fill(uint16_t color)
+{
+    moros_display_fill_rect(0, 0, MOROS_LCD_WIDTH, MOROS_LCD_HEIGHT, color);
 }
 
 void moros_display_set_pixel(uint16_t x, uint16_t y, uint16_t color)

@@ -31,7 +31,9 @@
 #define MOROS_PIN_I2C_SCL   GPIO_NUM_18
 #define MOROS_PMIC_ADDR     0x6B
 
-/* Input */
+/* Input: rotary encoder with push switch */
+#define MOROS_PIN_ENC_A     GPIO_NUM_4
+#define MOROS_PIN_ENC_B     GPIO_NUM_5
 #define MOROS_PIN_KEY       GPIO_NUM_0  /* encoder push, strapping pin */
 
 void moros_power_off(void);
